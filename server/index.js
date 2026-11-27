@@ -636,12 +636,12 @@ if (process.env.NODE_ENV !== 'production') {
   const path = await import('node:path')
   const fs = await import('node:fs')
   const dist = path.resolve(process.cwd(), 'dist')
+  const index = path.join(dist, 'index.html')
+  if (!fs.existsSync(index)) {
+    throw new Error('Production frontend is missing. Run "npm run build" before "npm start".')
+  }
   app.use(express.static(dist))
-  app.get('*', (req, res) => {
-    const index = path.join(dist, 'index.html')
-    if (fs.existsSync(index)) res.sendFile(index)
-    else res.status(404).send('Not built')
-  })
+  app.get('*', (req, res) => res.sendFile(index))
 }
 
 server.listen(PORT, '0.0.0.0', () => {
