@@ -165,7 +165,16 @@ export default function Start() {
             </div>
 
             <div className="mt-10 hidden items-center gap-2 text-[11px] text-white/25 lg:flex">
-              <Sparkles size={12} /> Ratings sourced from the EA SPORTS FC 27 player database, with current club moves applied.
+              <Sparkles size={12} /> Ratings sourced from the{' '}
+              <a
+                href="https://fifaindex.com/players/fc27?gender=0"
+                target="_blank"
+                rel="noreferrer"
+                className="text-white/40 underline decoration-white/20 underline-offset-2 transition hover:text-white/70"
+              >
+                EA SPORTS FC 27 player database
+              </a>
+              , with current club moves applied.
             </div>
           </div>
 
