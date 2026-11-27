@@ -179,14 +179,15 @@ export function generateSeasonFixtures(db, saveId, season, startYear, clubs, opt
   const europe = opts.europe
   if (europe) {
     for (const comp of ['ucl', 'uel', 'uecl']) {
-      const entrants = (europe[comp] || []).filter(Boolean)
+      // Entrants arrive either as club rows or as bare club ids.
+      const entrants = (europe[comp] || []).map((c) => (c && typeof c === 'object' ? c.id : c)).filter(Boolean)
       if (entrants.length < 16) continue
       const bracket = seedBracket(entrants.slice(0, 16), comp === 'ucl' ? 3 : comp === 'uel' ? 5 : 9)
       for (let i = 0; i < bracket.length; i += 2) {
         const a = bracket[i]
         const b = bracket[i + 1]
         if (!a || !b) continue
-        all.push([saveId, season, comp, 'R16', 1, euroRoundDate(window.start, 0), a.id, b.id, 0, i / 2])
+        all.push([saveId, season, comp, 'R16', 1, euroRoundDate(window.start, 0), a, b, 0, i / 2])
       }
     }
   }

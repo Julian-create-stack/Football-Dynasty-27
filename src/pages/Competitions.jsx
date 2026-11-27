@@ -9,6 +9,8 @@ import { Btn, Chip, Empty, FormPills, Panel, Pos, SectionHead, Select, Spinner, 
 import { dateShort, ordinal, money } from '../lib/format.js'
 import { flagEmoji } from '../lib/nations.js'
 
+const NOT_STARTED = 'Competition Fixtures and Stats will be released later'
+
 const ZONE = (pos, size) => {
   if (pos <= 4) return 'bg-[#3d7bff]/70'
   if (pos <= 6) return 'bg-emerald-400/70'
@@ -30,15 +32,6 @@ export default function Competitions() {
     api.get(`/competitions?comp=${comp}`).then((d) => { setData(d); setView(d.isLeague ? 'table' : 'bracket') }).catch(() => {}).finally(() => setLoading(false))
   }, [comp])
 
-  if (!data && loading) return <Spinner label="Loading competitions" />
-
-  const comps = data?.competitions || []
-  const leagues = comps.filter((c) => c.kind === 'league' && c.tier === 1)
-  const cups = comps.filter((c) => c.kind === 'cup')
-  const europe = comps.filter((c) => c.kind === 'europe')
-  const size = data?.table?.length || 20
-  const userClubId = game?.club?.id
-
   const rounds = useMemo(() => {
     const map = {}
     for (const f of data?.fixtures || []) {
@@ -47,6 +40,16 @@ export default function Competitions() {
     }
     return map
   }, [data])
+
+  if (!data && loading) return <Spinner label="Loading competitions" />
+  if (!data) return <Panel><Empty icon={Trophy} title="Competitions unavailable" text="Could not load competition data. Try again in a moment." /></Panel>
+
+  const comps = data.competitions || []
+  const leagues = comps.filter((c) => c.kind === 'league' && c.tier === 1)
+  const cups = comps.filter((c) => c.kind === 'cup')
+  const europe = comps.filter((c) => c.kind === 'europe')
+  const size = data.table?.length || 20
+  const userClubId = game?.club?.id
 
   return (
     <div className="space-y-4">
@@ -72,7 +75,7 @@ export default function Competitions() {
         ))}
       </div>
 
-      {data?.isLeague ? (
+      {data.isLeague ? (
         <div className="grid gap-4 xl:grid-cols-[1fr_330px]">
           <div className="space-y-4">
             <Panel className="overflow-hidden">
@@ -122,8 +125,9 @@ export default function Competitions() {
                 <div className="flex items-center gap-2"><CalendarDays size={14} className="text-white/40" /><span className="text-[13px] font-semibold">Fixtures & results</span></div>
                 <Tabs size="sm" tabs={[{ key: 'all', label: 'All' }, { key: 'results', label: 'Results' }, { key: 'upcoming', label: 'Upcoming' }]} value={view} onChange={setView} />
               </div>
+              {!data.fixtures.length && <div className="px-4 py-8 text-center text-[12px] text-white/40">{NOT_STARTED}</div>}
               <TableWrap maxH="max-h-[420px]">
-                <table className="data-table">
+                <table className={clsx('data-table', !data.fixtures.length && 'hidden')}>
                   <thead><tr><th>Date</th><th>Round</th><th>Home</th><th></th><th>Away</th><th></th></tr></thead>
                   <tbody>
                     {data.fixtures
@@ -162,7 +166,7 @@ export default function Competitions() {
                     <span className="w-7 text-right text-[10px] text-white/35">{s.assists}a</span>
                   </button>
                 ))}
-                {!data.topScorers.length && <Empty icon={Goal} title="No goals yet" />}
+                {!data.topScorers.length && <Empty icon={Goal} title="No goals yet" text={data.fixtures.some((f) => f.played) ? 'Goalscorers appear once matches are played.' : NOT_STARTED} />}
               </div>
             </Panel>
             <Panel className="p-5">
@@ -212,7 +216,7 @@ export default function Competitions() {
               </div>
             </Panel>
           ))}
-          {!data.fixtures.length && <Panel><Empty icon={Trophy} title="No fixtures" text="This competition has not started yet." /></Panel>}
+          {!data.fixtures.length && <Panel><Empty icon={Trophy} title="Fixtures and stats coming soon" text={NOT_STARTED} /></Panel>}
           <Panel className="p-5">
             <SectionHead kicker="Honours" title="Past winners" />
             <div className="mt-3 grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
