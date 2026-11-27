@@ -1,0 +1,12 @@
+# Replicates the SQLite database to S3-compatible object storage (Cloudflare R2
+# on the free tier) so it survives restarts and redeploys without a paid disk.
+dbs:
+  - path: ${DATA_DIR}/game.db
+    replicas:
+      - type: s3
+        bucket: ${LITESTREAM_BUCKET}
+        path: ufm
+        endpoint: ${LITESTREAM_ENDPOINT}
+        region: auto
+        access-key-id: ${LITESTREAM_ACCESS_KEY_ID}
+        secret-access-key: ${LITESTREAM_SECRET_ACCESS_KEY}
