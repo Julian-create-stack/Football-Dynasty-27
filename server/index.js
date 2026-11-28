@@ -635,7 +635,10 @@ if (process.env.NODE_ENV !== 'production') {
 } else {
   const path = await import('node:path')
   const fs = await import('node:fs')
-  const dist = path.resolve(process.cwd(), 'dist')
+  const { fileURLToPath } = await import('node:url')
+  const here = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'dist')
+  const cwd = path.resolve(process.cwd(), 'dist')
+  const dist = fs.existsSync(path.join(cwd, 'index.html')) ? cwd : here
   const index = path.join(dist, 'index.html')
   if (!fs.existsSync(index)) {
     throw new Error('Production frontend is missing. Run "npm run build" before "npm start".')

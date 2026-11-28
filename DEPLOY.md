@@ -1,13 +1,82 @@
-# Deploying for free (Render + Cloudflare R2)
+# Putting the game online for free (no credit card)
 
 The game is a Node/Express server with a SQLite database, so it needs a host that
-runs a process — not a static file host.
+runs a process and keeps files between visits.
 
 **GitHub Pages cannot run this app.** Pages only serves static files: it cannot
 build the React frontend, run the API, or keep a database, which is why
 `https://julian-create-stack.github.io/Football-Dynasty-27/` shows a blank page.
 
-The setup here keeps everything on free tiers and needs no persistent disk:
+## Option A (recommended): alwaysdata Free
+
+alwaysdata's Free plan is €0 forever, needs **no credit card** (email + password
+only), and gives 1 GB of **persistent** disk, 256 MB RAM and a public
+`https://<account>.alwaysdata.net` address. Careers live in `data/game.db` on that
+disk, so they survive restarts.
+
+Its 256 MB of RAM is enough to *run* the game (~55 MB) but not to *build* the
+React bundle (~490 MB), so the build happens once per push in GitHub Actions and
+is published to a `deploy` branch. The host only downloads and starts it.
+
+### 1. Create the account
+
+1. Go to <https://www.alwaysdata.com/en/register/> and sign up (email + password).
+2. Pick the **Free** plan (0 €/month). No payment details are asked for.
+3. In the admin panel open **Environment → Node.js** and set the default version
+   to **22**.
+
+### 2. Publish the build branch
+
+1. Merge the pull request into `main` (the deployment files must be on `main`).
+2. Open the repository's **Actions** tab and wait for **Publish playable build**
+   to finish green. It creates/updates a branch called `deploy` containing the
+   source plus the compiled `dist/` folder.
+3. `deploy` is rebuilt automatically on every later push to `main`.
+
+### 3. Put the code on alwaysdata
+
+Connect over SSH (the address is shown under **Remote access → SSH**):
+
+```sh
+ssh <account>@ssh-<account>.alwaysdata.net
+git clone -b deploy https://github.com/Julian-create-stack/Football-Dynasty-27.git ufm
+cd ufm
+npm ci --omit=dev
+```
+
+### 4. Create the site
+
+In the admin panel: **Web → Sites → Add a site**, type **Node.js**, and use:
+
+```text
+Command:   node /home/<account>/ufm/server/index.js
+```
+
+Save. The site shows its address (`https://<account>.alwaysdata.net`). The app
+reads the port alwaysdata gives it, so no port needs configuring. Open the
+address, pick a club and start a career.
+
+### 5. Updating the game later
+
+```sh
+# after merging a change into main and the Action has finished
+ssh <account>@ssh-<account>.alwaysdata.net
+cd ufm && git pull && npm ci --omit=dev
+```
+
+Then press **Restart** on the site in the admin panel.
+
+### Good to know
+
+- Careers are stored in `~/ufm/data/game.db` and alwaysdata keeps 3 days of
+  backups on the Free plan.
+- 256 MB RAM is the only tight limit; the running game uses about 55 MB.
+- No Docker, no object storage and no card are involved on this path.
+
+## Option B (optional): Render + Cloudflare R2
+
+Only needed if you prefer a container host and already have a Cloudflare account
+(R2 asks for payment details even on its free tier).
 
 | Piece | Free allowance | Role |
 | --- | --- | --- |
@@ -15,27 +84,11 @@ The setup here keeps everything on free tiers and needs no persistent disk:
 | Cloudflare R2 | 10 GB storage, free egress | Stores the database file |
 | Litestream (in the image) | open source | Streams SQLite changes to R2, restores on boot |
 
-Saves survive restarts, redeploys and the free instance spinning down, because
-the database lives in R2 and is restored into the fresh container at startup.
-
-## 1. Create the R2 bucket
-
-1. Sign up at <https://dash.cloudflare.com> (free).
-2. **R2 Object Storage → Create bucket**, name it `ufm-db`.
-3. **R2 → Manage R2 API Tokens → Create API token**, permission **Object Read & Write**,
-   scoped to `ufm-db`. Copy the **Access Key ID** and **Secret Access Key**.
-4. Note your endpoint: `https://<account-id>.r2.cloudflarestorage.com`
-   (the account ID is shown on the R2 overview page).
-
-## 2. Create the Render service
-
-1. Sign up at <https://render.com> (free) and connect the GitHub account that owns
-   `Julian-create-stack/Football-Dynasty-27`.
-2. **New → Web Service**, pick the repository, branch `main`.
-3. Set **Language: Docker** (Render builds the `Dockerfile` in this repo).
-4. Set **Instance Type: Free**.
-5. Set **Health Check Path** to `/api/health`.
-6. Add these environment variables:
+1. **R2**: create a bucket `ufm-db`, create an API token with *Object Read &
+   Write* on it, note the endpoint `https://<account-id>.r2.cloudflarestorage.com`.
+2. **Render**: New → Web Service → this repository, branch `main`, Language
+   **Docker**, Instance Type **Free**, Health Check Path `/api/health`.
+3. Add environment variables:
 
    ```text
    LITESTREAM_BUCKET=ufm-db
@@ -44,34 +97,8 @@ the database lives in R2 and is restored into the fresh container at startup.
    LITESTREAM_SECRET_ACCESS_KEY=<from the API token>
    ```
 
-   `PORT`, `NODE_ENV` and `DATA_DIR` are already set inside the image.
-7. **Create Web Service** and wait for the deploy to finish, then open the
-   `https://<service>.onrender.com` URL Render gives you.
+4. Deploy, then check `/api/health` and create a career. Use **Manual Deploy →
+   Restart** and reload: the career is restored from R2.
 
-## 3. Check it works
-
-- `https://<service>.onrender.com/api/health` returns `{"ok":true,...}`.
-- The start screen renders and a new career can be created.
-- In the Render dashboard use **Manual Deploy → Restart**, then reload the page:
-  the career is still there, restored from R2.
-
-## 4. Everyday workflow
-
-Push to `main` (merge a pull request) and Render rebuilds and redeploys
-automatically. That is the whole loop: the Base44 preview for editing, GitHub for
-the code, Render for the public game.
-
-## Limits to know
-
-- A free instance **spins down after 15 minutes without traffic**; the next visit
-  takes about a minute to come back. The database is not affected.
-- 750 free instance hours per month, single instance only (which is what SQLite
-  needs — never scale this service above one instance).
-- Free instances have no shell access.
-- Free Render Postgres expires after 30 days, which is why this uses R2 instead.
-
-## Without R2
-
-If the `LITESTREAM_*` variables are absent the container still starts and serves
-the game, but the database lives only on the container filesystem, so careers are
-lost on every restart or redeploy.
+Without the `LITESTREAM_*` variables the container still starts, but careers live
+only on the container filesystem and are lost on every restart or redeploy.
