@@ -1,8 +1,10 @@
 import Database from 'better-sqlite3'
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), 'data')
+const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
+const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data')
 fs.mkdirSync(DATA_DIR, { recursive: true })
 
 export const db = new Database(path.join(DATA_DIR, 'game.db'))
