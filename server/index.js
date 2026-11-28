@@ -647,6 +647,10 @@ if (process.env.NODE_ENV !== 'production') {
   app.get('*', (req, res) => res.sendFile(index))
 }
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`ULTIMATE FOOTBALL MANAGER listening on http://0.0.0.0:${PORT}`)
+// Some hosts (alwaysdata) proxy to the app over IPv6, so honour the address
+// they hand us instead of always binding IPv4-only.
+const HOST = process.env.HOST || process.env.IP || '0.0.0.0'
+
+server.listen(PORT, HOST, () => {
+  console.log(`ULTIMATE FOOTBALL MANAGER listening on http://${HOST}:${PORT}`)
 })
